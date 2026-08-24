@@ -1,0 +1,2658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>机柜连线配置工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 8px;
+            margin: 0;
+        }
+        .top-bar {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: stretch;
+            width: 100%;
+        }
+        .cabinet-column {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        .cabinet-card {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .cab-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .cab-title:hover {
+            background: #e8f0fe;
+        }
+        .cab-title[contenteditable="true"] {
+            cursor: text;
+            outline: 2px solid #2196F3;
+            background: #fff;
+            user-select: text;
+        }
+        .cab-title-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .cab-title-wrap .cab-title {
+            margin-bottom: 0;
+        }
+        .cab-del-btn {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .cab-del-btn:hover {
+            opacity: 1;
+        }
+        .extra-dev-col {
+            width: 200px;
+        }
+        .extra-cabinet-card {
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+        .add-cab-form {
+            padding: 8px 0;
+        }
+        .add-cab-form .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 14px 0;
+        }
+        .add-cab-form .form-row label {
+            min-width: 110px;
+            font-size: 14px;
+            text-align: right;
+        }
+        .add-cab-form .form-row input,
+        .add-cab-form .form-row select {
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            flex: 1;
+            max-width: 220px;
+            font-size: 14px;
+        }
+        .add-cab-form .form-row .fixed-text {
+            flex: 1;
+            max-width: 220px;
+            padding: 6px 8px;
+            font-size: 14px;
+            color: #333;
+            background: #f5f5f5;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .add-cab-form .tip {
+            color: #999;
+            font-size: 12px;
+            margin-left: 122px;
+        }
+        .cabinet {
+            display: flex;
+            border: 1px solid #333;
+            width: 100%;
+        }
+        .u-col {
+            width: 32px;
+            min-width: 32px;
+            border-right: 1px solid #cccccc;
+        }
+        .dev-col {
+            flex: 1;
+            min-width: 0;
+        }
+        .side-right-col {
+            width: 100px;
+            min-width: 100px;
+            border-left: 1px solid #999;
+        }
+        @media (max-width: 768px) {
+            .side-right-col {
+                display: none;
+            }
+            .cab-title {
+                font-size: 16px;
+            }
+            .dev-setting-area .field-row input {
+                width: 120px;
+            }
+            .power-row select {
+                min-width: 80px;
+            }
+            .row-item.net {
+                grid-template-columns: 80px 100px 80px 140px 140px 100px 80px 100px;
+            }
+            .row-item.net.agg-switch {
+                grid-template-columns: 80px 100px 80px 140px 140px 100px 80px 100px;
+            }
+            .row-item.odf {
+                grid-template-columns: 90px 160px 140px 140px;
+            }
+            .top-bar button {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+        }
+        .u-row {
+            height: 24px;
+            border-bottom: 1px solid #cccccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+        .dev-row {
+            height: 24px;
+            border-bottom: 1px solid #cccccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2px;
+            font-size: 12px;
+        }
+        .dev-row.has-device {
+            cursor: pointer;
+        }
+        .dev-row.has-device:hover {
+            background-color: #e8f0fe;
+        }
+        .dev-row.empty-u {
+            background: #ffffff;
+            cursor: pointer;
+        }
+        .dev-row.empty-u:hover {
+            background: #eef2ff;
+        }
+
+        .modal-mask {
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .modal-box {
+            background: #fff;
+            width: 95vw;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow: auto;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 10;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-header .modal-title {
+            margin-bottom: 0;
+        }
+        .modal-header .modal-footer {
+            margin-top: 0;
+        }
+        .row-item {
+            display: grid;
+            gap: 8px;
+            margin: 4px 0;
+            align-items: center;
+            min-width: 0;
+        }
+        .row-item.net {
+            grid-template-columns: 90px 120px 100px 160px 160px 120px 100px 120px;
+        }
+        .row-item.net.agg-switch {
+            grid-template-columns: 90px 120px 100px 160px 160px 120px 100px 120px;
+        }
+        .row-item.odf {
+            grid-template-columns: 100px 200px 180px 180px;
+        }
+        .row-item.kvm {
+            grid-template-columns: 80px 200px 160px;
+        }
+        .row-item.pdu {
+            grid-template-columns: 100px 240px 100px;
+        }
+        .row-item input,
+        .row-item select {
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 100%;
+        }
+        .row-item input.has-value,
+        .row-item select.has-value {
+            background-color: #e8f5e9 !important;
+            border-color: #4CAF50 !important;
+            border-width: 2px !important;
+        }
+        .row-item input.has-value:focus,
+        .row-item select.has-value:focus {
+            background-color: #c8e6c9 !important;
+        }
+        .row-item input.port-name-inp.has-value {
+            background-color: #e3f2fd !important;
+            border-color: #2196F3 !important;
+            border-width: 2px !important;
+        }
+        .row-item.net.port-group-0 .port-name-inp.has-value,
+        .row-item.net.agg-switch.port-group-0 .port-name-inp.has-value {
+            background-color: #e3f2fd !important;
+            border-color: #2196F3 !important;
+            border-width: 2px !important;
+        }
+        .row-item.net.port-group-1 .port-name-inp.has-value,
+        .row-item.net.agg-switch.port-group-1 .port-name-inp.has-value {
+            background-color: #e8f5e9 !important;
+            border-color: #4CAF50 !important;
+            border-width: 2px !important;
+        }
+        .row-item.net.port-group-2 .port-name-inp.has-value,
+        .row-item.net.agg-switch.port-group-2 .port-name-inp.has-value {
+            background-color: #fff3e0 !important;
+            border-color: #FF9800 !important;
+            border-width: 2px !important;
+        }
+        .row-item.net.port-group-3 .port-name-inp.has-value,
+        .row-item.net.agg-switch.port-group-3 .port-name-inp.has-value {
+            background-color: #f3e5f5 !important;
+            border-color: #9C27B0 !important;
+            border-width: 2px !important;
+        }
+        .power-row select.has-value {
+            background-color: #e8f5e9 !important;
+            border-color: #4CAF50 !important;
+            border-width: 2px !important;
+        }
+        .dev-setting-area input.has-value {
+            background-color: #e8f5e9 !important;
+            border-color: #4CAF50 !important;
+            border-width: 2px !important;
+        }
+
+        .modal-footer {
+            margin-top: 16px;
+            text-align: right;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        button {
+            padding: 6px 14px;
+            cursor: pointer;
+        }
+        .btn-del {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+        }
+        .btn-reset {
+            background: #ff9800;
+            color: #fff;
+            border: none;
+        }
+        .btn-export {
+            background: #2196F3;
+            color: #fff;
+            border: none;
+        }
+        .btn-import {
+            background: #009688;
+            color: #fff;
+            border: none;
+        }
+        .dev-setting-area {
+            margin-bottom: 16px;
+            padding: 8px;
+            border: 1px solid #eee;
+        }
+        .dev-setting-area .field-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .dev-setting-area .field-row label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+        }
+        .dev-setting-area .field-row input {
+            padding: 4px 6px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 160px;
+        }
+        .power-setting-area {
+            margin-bottom: 16px;
+            padding: 10px;
+            border: 1px solid #eee;
+            background: #fafbfc;
+        }
+        .power-setting-area .power-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .power-row {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .power-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .power-row select {
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            min-width: 100px;
+        }
+        .no-config-tip {
+            padding: 20px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .form-row.hidden {
+            display: none;
+        }
+        .add-cab-form .cab-tip {
+            color: #2196F3;
+            font-size: 13px;
+            margin-left: 122px;
+            background: #e3f2fd;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+        .cab-del-btn {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .cab-del-btn:hover {
+            opacity: 1;
+        }
+        .dev-info-card {
+            background: #f0f7ff;
+            border: 1px solid #b3d4fc;
+            border-radius: 6px;
+            padding: 14px 16px;
+        }
+        .dev-info-card .info-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #0d47a1;
+            margin-bottom: 8px;
+        }
+        .dev-info-card .info-item {
+            display: flex;
+            gap: 8px;
+            padding: 3px 0;
+            font-size: 13px;
+            border-bottom: 1px dashed #e3edf7;
+        }
+        .dev-info-card .info-item:last-child {
+            border-bottom: none;
+        }
+        .dev-info-card .info-label {
+            color: #555;
+            min-width: 72px;
+            flex-shrink: 0;
+        }
+        .dev-info-card .info-value {
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+        .modal-flex-wrap {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .modal-left-col {
+            flex: 1;
+            min-width: 0;
+        }
+        .modal-right-col {
+            flex: 1;
+            min-width: 0;
+        }
+        @media (max-width: 900px) {
+            .modal-flex-wrap {
+                flex-direction: column;
+            }
+            .modal-left-col,
+            .modal-right-col {
+                flex: none;
+                width: 100%;
+            }
+        }
+        .sync-tip {
+            background: #e3f2fd;
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #0d47a1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sync-tip .icon {
+            font-size: 16px;
+        }
+        .row-item input.inp-remark {
+            min-width: 120px;
+            width: auto;
+        }
+        .row-item.odf input.inp-remark {
+            min-width: 150px;
+            width: auto;
+        }
+        .row-item.net input.inp-remark,
+        .row-item.net.agg-switch input.inp-remark {
+            min-width: 120px;
+            width: auto;
+        }
+        .row-item.kvm input:not(.port-name-inp) {
+            min-width: 120px;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <button class="btn-reset" onclick="resetDefault()">重置为默认预置机柜</button>
+        <button class="btn-export" onclick="exportConfig()">导出配置JSON</button>
+        <button class="btn-import" onclick="document.getElementById('importFile').click()">导入配置JSON</button>
+        <button class="btn-export" onclick="exportExcel()" style="background:#4CAF50;">导出Excel</button>
+        <button class="btn-export" onclick="openAddCabModal()" style="background:#9C27B0;">增加机柜</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importConfig(this)">
+        <span style="margin-left:12px;color:#666;">⚠️所有配置保存在浏览器本地，清除缓存数据会丢失，请及时导出配置进行备份</span>
+    </div>
+
+    <div class="main-container">
+        <div class="cabinet-column">
+            <div class="cabinet-card">
+                <div class="cab-title" id="frontCabTitle" data-cab-id="front">金风风机中央监控柜</div>
+                <div class="cabinet">
+                    <div class="u-col" id="frontUCol"></div>
+                    <div class="dev-col" id="frontDevCol"></div>
+                </div>
+            </div>
+        </div>
+        <div class="cabinet-column">
+            <div class="cabinet-card">
+                <div class="cab-title" id="sideCabTitle" data-cab-id="side">金风风机中央监控柜</div>
+                <div class="cabinet">
+                    <div class="u-col" id="sideUCol"></div>
+                    <div class="dev-col" id="sideDevCol"></div>
+                    <div class="side-right-col" id="sideRightCol"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备弹窗 -->
+    <div class="modal-mask" id="modalMask">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="modalDevName">设备名称</div>
+                <div class="modal-footer">
+                    <button class="btn-del" id="delBtn">删除设备</button>
+                    <button id="saveBtn">保存</button>
+                    <button onclick="closeModal()">关闭</button>
+                </div>
+            </div>
+            <div id="modalBodyWrap"></div>
+        </div>
+    </div>
+
+    <!-- 增加机柜弹窗 -->
+    <div class="modal-mask" id="addCabMask">
+        <div class="modal-box" style="width:520px;max-height:none;">
+            <div class="modal-title">新增机柜</div>
+            <div class="add-cab-form">
+                <div class="form-row">
+                    <label>机柜名称：</label>
+                    <input id="addCabName" placeholder="请输入机柜屏眉名称" value="新增机柜">
+                </div>
+                <div class="form-row">
+                    <label>机柜U数：</label>
+                    <input id="addCabUCount" type="number" min="1" max="47" value="47">
+                </div>
+                <div class="form-row">
+                    <label>起始U位：</label>
+                    <input id="addCabStartU" type="number" min="1" max="47" value="1">
+                </div>
+                <div class="tip">起始U位为底部U位（1U在底部，47U在顶部），机柜覆盖 起始U位 ~ 起始U位+U数-1</div>
+                <div class="cab-tip">📌 新增机柜默认放置在现有所有机柜的最右侧</div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAddCabModal()">取消</button>
+                <button class="btn-export" onclick="confirmAddCab()">确认创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const U_HEIGHT = 24;
+        const TOP_U = 47;
+        const BOTTOM_U = 1;
+
+        const DEV_TYPE = {
+            NORMAL: 0,
+            KVM: 1,
+            NO_CONFIG: 2,
+            ODF: 3,
+            AGG_SWITCH: 4,
+            PDU: 5
+        }
+
+        // ===== 需要同步的设备名称列表（正视图和侧视图共有） =====
+        const SYNC_DEVICE_NAMES = [
+            "时钟服务器",
+            "振动服务器",
+            "能巢服务器",
+            "中控服务器备机",
+            "中控服务器主机",
+            "KVM",
+            "鼠标键盘托盘",
+            "显示屏",
+            "UPS主机",
+            "UPS电池箱",
+            "光缆终端盒预留1",
+            "光缆终端盒预留2",
+            "光缆终端盒预留3",
+            "光缆终端盒预留4"
+        ];
+
+        function genAggSwitchPortNames() {
+            let names = [];
+            for (let i = 1; i <= 6; i++) names.push("网口" + i);
+            for (let i = 1; i <= 16; i++) {
+                names.push("光口" + i + "-RX");
+                names.push("光口" + i + "-TX");
+            }
+            return names;
+        }
+
+        function getDefaultPreset() {
+            return {
+                front: [
+                    { startU: 47, endU: 46, text: "时钟服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 45, endU: 44, text: "振动服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 43, endU: 42, text: "能巢服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 41, endU: 38, text: "中控服务器备机", deviceIp: "", portCount: 6, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 37, endU: 28, text: "显示屏", deviceIp: "", bg: "#cad8f0", portCount: 0,
+                        devType: DEV_TYPE.NO_CONFIG, ports: [] },
+                    { startU: 27, endU: 27, text: "KVM", deviceIp: "", portCount: 8, devType: DEV_TYPE.KVM,
+                    ports: [] },
+                    { startU: 26, endU: 26, text: "鼠标键盘托盘", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 25, endU: 22, text: "中控服务器主机", deviceIp: "", portCount: 6, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 21, endU: 18, text: "UPS主机", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 17, endU: 14, text: "UPS电池箱", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 13, endU: 12, text: "光缆终端盒预留1", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 11, endU: 10, text: "光缆终端盒预留2", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 9, endU: 8, text: "光缆终端盒预留3", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 7, endU: 6, text: "光缆终端盒预留4", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                ],
+                side: [
+                    { startU: 47, endU: 46, text: "时钟服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 45, endU: 44, text: "振动服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 43, endU: 42, text: "能巢服务器", deviceIp: "", portCount: 4, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 41, endU: 38, text: "中控服务器备机", deviceIp: "", portCount: 6, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 37, endU: 37, text: "一二区防火墙", deviceIp: "", portCount: 8, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 36, endU: 36, text: "纵向加密主站", deviceIp: "", portCount: 6, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 35, endU: 35, text: "一区核心交换机", deviceIp: "", portCount: 24, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 34, endU: 34, text: "VLAN交换机", deviceIp: "", portCount: 24, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 33, endU: 33, text: "汇聚交换机1", deviceIp: "", portCount: 22, devType: DEV_TYPE
+                            .AGG_SWITCH, ports: [] },
+                    { startU: 32, endU: 32, text: "汇聚交换机2", deviceIp: "", portCount: 22, devType: DEV_TYPE
+                            .AGG_SWITCH, ports: [] },
+                    { startU: 31, endU: 31, text: "汇聚交换机3", deviceIp: "", portCount: 22, devType: DEV_TYPE
+                            .AGG_SWITCH, ports: [] },
+                    { startU: 30, endU: 30, text: "汇聚交换机4", deviceIp: "", portCount: 22, devType: DEV_TYPE
+                            .AGG_SWITCH, ports: [] },
+                    { startU: 27, endU: 27, text: "KVM", deviceIp: "", portCount: 8, devType: DEV_TYPE.KVM,
+                    ports: [] },
+                    { startU: 26, endU: 26, text: "鼠标键盘托盘", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 25, endU: 22, text: "中控服务器主机", deviceIp: "", portCount: 6, devType: DEV_TYPE.NORMAL,
+                        ports: [] },
+                    { startU: 21, endU: 18, text: "UPS主机", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 17, endU: 14, text: "UPS电池箱", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 13, endU: 12, text: "光缆终端盒预留1", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 11, endU: 10, text: "光缆终端盒预留2", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 9, endU: 8, text: "光缆终端盒预留3", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                    { startU: 7, endU: 6, text: "光缆终端盒预留4", deviceIp: "", portCount: 48, devType: DEV_TYPE.ODF,
+                        ports: [] },
+                ],
+                sideRight: [
+                    { startU: 47, endU: 47, text: "PDU1", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 46, endU: 46, text: "线槽1", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 41, endU: 41, text: "PDU2", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 40, endU: 40, text: "线槽2", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 35, endU: 35, text: "线槽3", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 34, endU: 34, text: "线槽4", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 29, endU: 29, text: "PDU3", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 28, endU: 28, text: "线槽5", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 23, endU: 23, text: "PDU4", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 22, endU: 22, text: "线槽6", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 17, endU: 17, text: "PDU5", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 16, endU: 16, text: "线槽7", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 11, endU: 11, text: "PDU6", deviceIp: "", portCount: 8, devType: DEV_TYPE.PDU,
+                    ports: [] },
+                    { startU: 10, endU: 10, text: "线槽8", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 1, endU: 1, text: "电缆预留空间", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 2, endU: 2, text: "接地铜排", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [] },
+                    { startU: 3, endU: 3, text: "空开插座", deviceIp: "", portCount: 0, devType: DEV_TYPE.NO_CONFIG,
+                        ports: [], qf1Pdu: "PDU5", qf2Pdu: "PDU6" },
+                ]
+            }
+        }
+
+        let frontDevBlocks = [];
+        let sideDevBlocks = [];
+        let sideRightBlocks = [];
+        let extraCabinets = [];
+        let frontCabName = "金风风机中央监控柜";
+        let sideCabName = "金风风机中央监控柜";
+
+        const STORAGE_KEY = "cabinet_config_data";
+        let currentDev = null;
+        let currentBlockList = null;
+        let currentCabinetId = null;
+        const modalMask = document.getElementById("modalMask");
+        const modalDevName = document.getElementById("modalDevName");
+        const saveBtn = document.getElementById("saveBtn");
+        const delBtn = document.getElementById("delBtn");
+
+        function getDisplayInfo() {
+            return {
+                name: "金风风机中央监控屏",
+                model: "GOLDWIND",
+                developer: "赵琪璐",
+                company: "内蒙古区域公司",
+                department: "售后技术团队",
+                version: "V1.3",
+                updateDate: "2026-08-24",
+                description: "风机中央监控系统配置备份，连线可视化记录功能"
+            };
+        }
+
+        function findCounterpartDevice(devName, excludeList) {
+            if (!devName) return null;
+            if (excludeList !== frontDevBlocks) {
+                const found = frontDevBlocks.find(d => d.text === devName);
+                if (found) return { dev: found, list: frontDevBlocks, cabinet: "front" };
+            }
+            if (excludeList !== sideDevBlocks) {
+                const found = sideDevBlocks.find(d => d.text === devName);
+                if (found) return { dev: found, list: sideDevBlocks, cabinet: "side" };
+            }
+            return null;
+        }
+
+        function isSyncDevice(devName) {
+            return SYNC_DEVICE_NAMES.includes(devName);
+        }
+
+        function syncDeviceConfig(sourceDev, sourceList) {
+            if (!sourceDev || !sourceDev.text) return;
+            if (!isSyncDevice(sourceDev.text)) return;
+            const counterpart = findCounterpartDevice(sourceDev.text, sourceList);
+            if (!counterpart) return;
+            const targetDev = counterpart.dev;
+            const targetList = counterpart.list;
+            const targetPortNames = {};
+            if (targetDev.ports) {
+                targetDev.ports.forEach((p, idx) => {
+                    if (p.portName) {
+                        targetPortNames[idx] = p.portName;
+                    }
+                });
+            }
+            // 同步deviceIp
+            if (sourceDev.deviceIp !== undefined) {
+                targetDev.deviceIp = sourceDev.deviceIp;
+            }
+            if (sourceDev.ports) {
+                targetDev.ports = [];
+                sourceDev.ports.forEach((srcPort, idx) => {
+                    let portName = targetPortNames[idx] || srcPort.portName || `端口${idx + 1}`;
+                    const newPort = {
+                        portName: portName,
+                        localIp: srcPort.localIp || "",
+                        localMask: srcPort.localMask || "",
+                        dstDev: srcPort.dstDev || "",
+                        dstPortName: srcPort.dstPortName || "",
+                        dstIp: srcPort.dstIp || "",
+                        dstMask: srcPort.dstMask || "",
+                        remark: srcPort.remark || "",
+                        linkDev: srcPort.linkDev || "",
+                        linkPower: srcPort.linkPower || ""
+                    };
+                    targetDev.ports.push(newPort);
+                });
+            }
+            if (sourceDev.power1) {
+                targetDev.power1 = {
+                    pdu: sourceDev.power1.pdu || "",
+                    port: sourceDev.power1.port || ""
+                };
+            } else {
+                targetDev.power1 = null;
+            }
+            if (sourceDev.power2) {
+                targetDev.power2 = {
+                    pdu: sourceDev.power2.pdu || "",
+                    port: sourceDev.power2.port || ""
+                };
+            } else {
+                targetDev.power2 = null;
+            }
+            if (sourceDev.qf1Pdu) targetDev.qf1Pdu = sourceDev.qf1Pdu;
+            if (sourceDev.qf2Pdu) targetDev.qf2Pdu = sourceDev.qf2Pdu;
+            if (sourceDev.devType !== undefined) targetDev.devType = sourceDev.devType;
+            if (sourceDev.portCount !== undefined) targetDev.portCount = sourceDev.portCount;
+            if (sourceDev.bg) targetDev.bg = sourceDev.bg;
+            fillDevicePorts(targetDev);
+        }
+
+        function fillDevicePorts(dev) {
+            dev.ports = dev.ports || [];
+            if (dev.deviceIp === undefined) dev.deviceIp = "";
+            if (dev.devType === DEV_TYPE.AGG_SWITCH) {
+                dev.portCount = 38;
+                const preNames = genAggSwitchPortNames();
+                const oldPorts = dev.ports || [];
+                dev.ports = [];
+                preNames.forEach(pn => {
+                    const exist = oldPorts.find(p => p.portName === pn);
+                    if (exist) {
+                        dev.ports.push(exist);
+                    } else {
+                        dev.ports.push({
+                            portName: pn,
+                            localIp: "",
+                            localMask: "",
+                            dstDev: "",
+                            dstPortName: "",
+                            dstIp: "",
+                            dstMask: "",
+                            remark: ""
+                        });
+                    }
+                });
+                return;
+            }
+            if (dev.devType === DEV_TYPE.PDU) {
+                dev.portCount = 8;
+                const oldPorts = dev.ports || [];
+                dev.ports = [];
+                for (let i = 1; i <= 8; i++) {
+                    const exist = oldPorts.find(p => p.portName === "电源口" + i);
+                    if (exist) {
+                        dev.ports.push(exist);
+                    } else {
+                        dev.ports.push({ portName: "电源口" + i, linkDev: "", linkPower: "" });
+                    }
+                }
+                return;
+            }
+            if (dev.devType === DEV_TYPE.ODF) {
+                dev.portCount = 48;
+                const oldPorts = dev.ports || [];
+                dev.ports = [];
+                for (let i = 1; i <= 48; i++) {
+                    const portName = "光口" + i;
+                    const exist = oldPorts.find(p => p.portName === portName);
+                    if (exist) {
+                        dev.ports.push(exist);
+                    } else {
+                        dev.ports.push({ portName: portName, dstDev: "", dstPortName: "", remark: "" });
+                    }
+                }
+                dev.ports.sort((a, b) => {
+                    const ai = parseInt(a.portName.replace("光口", ""));
+                    const bi = parseInt(b.portName.replace("光口", ""));
+                    return ai - bi;
+                });
+                return;
+            }
+            if (dev.devType === DEV_TYPE.KVM) {
+                while (dev.ports.length < dev.portCount) {
+                    dev.ports.push({ portName: "", linkDev: "", remark: "" });
+                }
+                while (dev.ports.length > dev.portCount) dev.ports.pop();
+                return;
+            }
+            while (dev.ports.length < dev.portCount) {
+                dev.ports.push({ portName: "", localIp: "", localMask: "", dstDev: "", dstPortName: "", dstIp: "",
+                    dstMask: "", remark: "" });
+            }
+            while (dev.ports.length > dev.portCount) dev.ports.pop();
+        }
+
+        function getAllLinkableDevices() {
+            let all = [];
+            all = all.concat(frontDevBlocks);
+            all = all.concat(sideDevBlocks);
+            extraCabinets.forEach(cab => {
+                if (cab.devices) {
+                    all = all.concat(cab.devices);
+                }
+            });
+            all.forEach(d => fillDevicePorts(d));
+            const map = new Map();
+            all.filter(d => d.portCount > 0).forEach(item => {
+                if (!map.has(item.text)) map.set(item.text, item);
+            })
+            return Array.from(map.values());
+        }
+
+        function findDevByName(devName) {
+            const allRaw = [];
+            allRaw.push(...frontDevBlocks);
+            allRaw.push(...sideDevBlocks);
+            extraCabinets.forEach(cab => {
+                if (cab.devices) {
+                    allRaw.push(...cab.devices);
+                }
+            });
+            return allRaw.find(x => x.text === devName);
+        }
+
+        function getDevPortNameList(dev) {
+            if (!dev) return [];
+            fillDevicePorts(dev);
+            return dev.ports.map((p, idx) => {
+                const pn = p.portName ? p.portName : `网口${idx + 1}`;
+                const occupied = !!(p.dstDev && p.dstPortName);
+                return { portName: pn, occupied: occupied, dstDev: p.dstDev || "", dstPortName: p.dstPortName || "" };
+            })
+        }
+
+        function buildPowerPortOpts(pduName, excludeDevName) {
+            let opts = "<option value=''>--电源口--</option>";
+            if (!pduName) {
+                for (let i = 1; i <= 8; i++) { opts += `<option value="${i}">电源口${i}</option>`; }
+                return opts;
+            }
+            const pdu = sideRightBlocks.find(b => b.text === pduName && b.devType === DEV_TYPE.PDU);
+            if (!pdu) {
+                for (let i = 1; i <= 8; i++) { opts += `<option value="${i}">电源口${i}</option>`; }
+                return opts;
+            }
+            fillDevicePorts(pdu);
+            pdu.ports.forEach(p => {
+                const portIdx = p.portName.replace("电源口", "");
+                const occupied = !!(p.linkDev && p.linkDev !== excludeDevName);
+                opts += `<option value="${portIdx}">${p.portName}${occupied ? "（占用）" : ""}</option>`;
+            });
+            return opts;
+        }
+
+        function findPortByDevAndPortName(devName, portName) {
+            const dev = findDevByName(devName);
+            if (!dev || !dev.ports) return null;
+            for (let i = 0; i < dev.ports.length; i++) {
+                const p = dev.ports[i];
+                const pn = p.portName || `网口${i + 1}`;
+                if (pn === portName) return { dev, port: p, index: i };
+            }
+            return null;
+        }
+
+        function clearAllRemoteConnectionsToDevice(devName) {
+            if (!devName) return;
+            const allDevs = [];
+            allDevs.push(...frontDevBlocks);
+            allDevs.push(...sideDevBlocks);
+            allDevs.push(...sideRightBlocks);
+            extraCabinets.forEach(cab => {
+                if (cab.devices) allDevs.push(...cab.devices);
+            });
+            allDevs.forEach(d => {
+                if (!d.ports) return;
+                d.ports.forEach(p => {
+                    if (p.dstDev === devName) {
+                        p.dstDev = "";
+                        p.dstPortName = "";
+                        p.dstIp = "";
+                        p.dstMask = "";
+                    }
+                });
+            });
+        }
+
+        function sanitizeBlocks(blockList) {
+            if (!blockList) return [];
+            return blockList.filter(b => {
+                b.startU = Math.max(BOTTOM_U, Math.min(TOP_U, b.startU));
+                b.endU = Math.max(BOTTOM_U, Math.min(TOP_U, b.endU));
+                if (b.deviceIp === undefined) b.deviceIp = "";
+                fillDevicePorts(b);
+                return true;
+            });
+        }
+
+        function sortBlockList(blockList) {
+            if (!blockList) return;
+            blockList.sort(function(a, b) {
+                return b.startU - a.startU;
+            })
+        }
+
+        function isRangeOverlap(aStart, aEnd, bStart, bEnd) {
+            return !(aEnd > bStart || aStart < bEnd);
+        }
+
+        function addNewDeviceAtU(blockList, clickU) {
+            const newStartU = clickU;
+            const newEndU = clickU;
+            for (let dev of blockList) {
+                if (isRangeOverlap(newStartU, newEndU, dev.startU, dev.endU)) {
+                    alert(`U${clickU}位置已经有设备，请选择空白U位双击`);
+                    return null;
+                }
+            }
+            const newDev = {
+                startU: newStartU,
+                endU: newEndU,
+                text: "新设备",
+                deviceIp: "",
+                portCount: 4,
+                devType: DEV_TYPE.NORMAL,
+                ports: []
+            };
+            fillDevicePorts(newDev);
+            blockList.push(newDev);
+            sortBlockList(blockList);
+            saveStorage();
+            renderAll();
+            return newDev;
+        }
+
+        function saveStorage() {
+            const saveData = {
+                front: frontDevBlocks,
+                side: sideDevBlocks,
+                sideRight: sideRightBlocks,
+                extraCabinets: extraCabinets,
+                frontCabName: frontCabName,
+                sideCabName: sideCabName
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+        }
+
+        function loadStorage() {
+            const preset = getDefaultPreset();
+            const s = localStorage.getItem(STORAGE_KEY);
+            if (s) {
+                try {
+                    const data = JSON.parse(s);
+                    frontDevBlocks = sanitizeBlocks(data.front);
+                    sideDevBlocks = sanitizeBlocks(data.side);
+                    if (data.sideRight) sideRightBlocks = sanitizeBlocks(data.sideRight);
+                    else sideRightBlocks = preset.sideRight;
+                    extraCabinets = data.extraCabinets || [];
+                    frontCabName = data.frontCabName || "金风风机中央监控柜";
+                    sideCabName = data.sideCabName || "金风风机中央监控柜";
+                    extraCabinets.forEach(cab => {
+                        if (cab.alignStartU != null && cab.startU == null) {
+                            cab.startU = Math.max(1, cab.alignStartU - cab.uCount + 1);
+                        }
+                        if (cab.startU == null) cab.startU = 15;
+                        if (cab.uCount == null) cab.uCount = 10;
+                        if (cab.column == null) cab.column = 2;
+                        if (cab.devices == null) cab.devices = [];
+                        if (cab.id == null) cab.id = "cab_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+                        if (cab.name == null) cab.name = "新增机柜";
+                        cab.devices = sanitizeBlocks(cab.devices);
+                    });
+                    autoAssignColumns();
+                } catch (e) {
+                    console.log("读取本地配置失败，加载默认预置", e);
+                    frontDevBlocks = JSON.parse(JSON.stringify(preset.front));
+                    sideDevBlocks = JSON.parse(JSON.stringify(preset.side));
+                    sideRightBlocks = JSON.parse(JSON.stringify(preset.sideRight));
+                    extraCabinets = [];
+                    frontCabName = "金风风机中央监控柜";
+                    sideCabName = "金风风机中央监控柜";
+                }
+            } else {
+                frontDevBlocks = JSON.parse(JSON.stringify(preset.front));
+                sideDevBlocks = JSON.parse(JSON.stringify(preset.side));
+                sideRightBlocks = JSON.parse(JSON.stringify(preset.sideRight));
+                extraCabinets = [];
+                frontCabName = "金风风机中央监控柜";
+                sideCabName = "金风风机中央监控柜";
+            }
+            sortBlockList(frontDevBlocks);
+            sortBlockList(sideDevBlocks);
+            sideRightBlocks.forEach(b => {
+                if (b.text && b.text.indexOf("PDU") === 0 && b.devType === DEV_TYPE.NO_CONFIG) {
+                    b.devType = DEV_TYPE.PDU;
+                    b.portCount = 8;
+                    fillDevicePorts(b);
+                }
+            });
+            const renameMap = { "中控工控机备机": "中控服务器备机", "中控工控机主机": "中控服务器主机" };
+            [...frontDevBlocks, ...sideDevBlocks].forEach(d => {
+                if (renameMap[d.text]) d.text = renameMap[d.text];
+            });
+            sideRightBlocks.forEach(b => {
+                if (b.devType === DEV_TYPE.PDU && b.ports) {
+                    b.ports.forEach(p => {
+                        if (renameMap[p.linkDev]) p.linkDev = renameMap[p.linkDev];
+                    });
+                }
+            });
+            [
+                { text: "汇聚交换机2", u: 32 },
+                { text: "汇聚交换机3", u: 31 },
+                { text: "汇聚交换机4", u: 30 }
+            ].forEach(item => {
+                const exist = sideDevBlocks.find(b => b.text === item.text);
+                if (!exist) {
+                    const occupied = sideDevBlocks.find(b => item.u >= b.endU && item.u <= b.startU);
+                    if (!occupied) {
+                        const newDev = {
+                            startU: item.u,
+                            endU: item.u,
+                            text: item.text,
+                            deviceIp: "",
+                            portCount: 22,
+                            devType: DEV_TYPE.AGG_SWITCH,
+                            ports: []
+                        };
+                        fillDevicePorts(newDev);
+                        sideDevBlocks.push(newDev);
+                    }
+                }
+            });
+            sortBlockList(sideDevBlocks);
+            const pdu2Old = sideRightBlocks.find(b => b.text === "PDU2");
+            if (pdu2Old && pdu2Old.startU === 45) {
+                const moveOrder = ["PDU1", "线槽1", "PDU2", "线槽2", "线槽3", "线槽4", "PDU3", "线槽5", "PDU4", "线槽6",
+                    "PDU5", "线槽7", "PDU6", "线槽8"
+                ];
+                const movable = sideRightBlocks.filter(b => moveOrder.indexOf(b.text) >= 0);
+                const fixed = sideRightBlocks.filter(b => moveOrder.indexOf(b.text) < 0);
+                movable.sort((a, b) => moveOrder.indexOf(a.text) - moveOrder.indexOf(b.text));
+                movable.forEach((dev, idx) => {
+                    const comboIdx = Math.floor(idx / 2);
+                    const posInCombo = idx % 2;
+                    const slotTop = 47 - comboIdx * 6;
+                    dev.startU = slotTop - posInCombo;
+                    dev.endU = dev.startU;
+                });
+                sideRightBlocks = [...movable, ...fixed];
+                saveStorage();
+            }
+            syncAllDevices();
+        }
+
+        function syncAllDevices() {
+            frontDevBlocks.forEach(frontDev => {
+                if (isSyncDevice(frontDev.text)) {
+                    syncDeviceConfig(frontDev, frontDevBlocks);
+                }
+            });
+            sideDevBlocks.forEach(sideDev => {
+                if (isSyncDevice(sideDev.text)) {
+                    const frontMatch = frontDevBlocks.find(d => d.text === sideDev.text);
+                    if (frontMatch) {
+                        syncDeviceConfig(sideDev, sideDevBlocks);
+                    }
+                }
+            });
+            saveStorage();
+        }
+
+        function getDevTypeName(devType) {
+            switch (devType) {
+                case DEV_TYPE.NORMAL:
+                    return "普通网络设备";
+                case DEV_TYPE.KVM:
+                    return "KVM";
+                case DEV_TYPE.NO_CONFIG:
+                    return "无配置设备";
+                case DEV_TYPE.ODF:
+                    return "光缆终端盒";
+                case DEV_TYPE.AGG_SWITCH:
+                    return "汇聚交换机";
+                case DEV_TYPE.PDU:
+                    return "PDU电源分配单元";
+                default:
+                    return "未知";
+            }
+        }
+
+        // ===================== 导出Excel =====================
+        function exportExcel() {
+            if (typeof XLSX === "undefined") {
+                alert("Excel导出库加载失败，请检查网络连接后刷新页面");
+                return;
+            }
+
+            const typeGroups = {};
+            const processedDevNames = new Set();
+            const allDevs = [];
+            allDevs.push(...frontDevBlocks);
+            allDevs.push(...sideDevBlocks);
+            allDevs.push(...sideRightBlocks);
+            extraCabinets.forEach(cab => {
+                if (cab.devices) allDevs.push(...cab.devices);
+            });
+
+            function getCabinetName(dev) {
+                if (frontDevBlocks.includes(dev)) return frontCabName;
+                if (sideDevBlocks.includes(dev)) return sideCabName;
+                if (sideRightBlocks.includes(dev)) return sideCabName;
+                for (let cab of extraCabinets) {
+                    if (cab.devices && cab.devices.includes(dev)) {
+                        return cab.name;
+                    }
+                }
+                return "未知机柜";
+            }
+
+            allDevs.forEach(dev => {
+                fillDevicePorts(dev);
+                if (processedDevNames.has(dev.text)) return;
+                processedDevNames.add(dev.text);
+                const typeName = getDevTypeName(dev.devType);
+                const location = dev.startU === dev.endU ? `${dev.startU}U` : `${dev.endU}U-${dev.startU}U`;
+                const cabinet = getCabinetName(dev);
+                if (!typeGroups[typeName]) typeGroups[typeName] = [];
+                const rows = typeGroups[typeName];
+
+                if (dev.ports && dev.ports.length > 0) {
+                    dev.ports.forEach((p, idx) => {
+                        const hasConfig = p.portName || p.localIp || p.localMask || p.dstDev || p
+                        .dstPortName || p.dstIp || p
+                            .dstMask || p.remark || p.linkDev || p.linkPower;
+                        if (hasConfig) {
+                            let portName = p.portName;
+                            if (!portName) {
+                                if (dev.devType === DEV_TYPE.NORMAL) portName = `网口${idx + 1}`;
+                                else portName = `端口${idx + 1}`;
+                            }
+                            rows.push({
+                                "所属机柜": cabinet,
+                                "设备名称": dev.text,
+                                "设备IP": dev.deviceIp || "",
+                                "位置(U)": location,
+                                "配置类型": "端口",
+                                "本端端口": portName,
+                                "本端IP": p.localIp || "",
+                                "本端掩码": p.localMask || "",
+                                "对端设备": p.dstDev || p.linkDev || "",
+                                "对端端口": p.dstPortName || p.linkPower || "",
+                                "对端IP": p.dstIp || "",
+                                "对端掩码": p.dstMask || "",
+                                "备注": p.remark || ""
+                            });
+                        }
+                    });
+                }
+
+                if (dev.power1 && dev.power1.pdu) {
+                    rows.push({
+                        "所属机柜": cabinet,
+                        "设备名称": dev.text,
+                        "设备IP": dev.deviceIp || "",
+                        "位置(U)": location,
+                        "配置类型": "电源1",
+                        "本端端口": "",
+                        "本端IP": "",
+                        "本端掩码": "",
+                        "对端设备": dev.power1.pdu,
+                        "对端端口": `电源口${dev.power1.port}`,
+                        "对端IP": "",
+                        "对端掩码": "",
+                        "备注": ""
+                    });
+                }
+                if (dev.power2 && dev.power2.pdu) {
+                    rows.push({
+                        "所属机柜": cabinet,
+                        "设备名称": dev.text,
+                        "设备IP": dev.deviceIp || "",
+                        "位置(U)": location,
+                        "配置类型": "电源2",
+                        "本端端口": "",
+                        "本端IP": "",
+                        "本端掩码": "",
+                        "对端设备": dev.power2.pdu,
+                        "对端端口": `电源口${dev.power2.port}`,
+                        "对端IP": "",
+                        "对端掩码": "",
+                        "备注": ""
+                    });
+                }
+                if (dev.qf1Pdu) {
+                    rows.push({
+                        "所属机柜": cabinet,
+                        "设备名称": dev.text,
+                        "设备IP": dev.deviceIp || "",
+                        "位置(U)": location,
+                        "配置类型": "QF1",
+                        "本端端口": "",
+                        "本端IP": "",
+                        "本端掩码": "",
+                        "对端设备": dev.qf1Pdu,
+                        "对端端口": "电源线",
+                        "对端IP": "",
+                        "对端掩码": "",
+                        "备注": ""
+                    });
+                }
+                if (dev.qf2Pdu) {
+                    rows.push({
+                        "所属机柜": cabinet,
+                        "设备名称": dev.text,
+                        "设备IP": dev.deviceIp || "",
+                        "位置(U)": location,
+                        "配置类型": "QF2",
+                        "本端端口": "",
+                        "本端IP": "",
+                        "本端掩码": "",
+                        "对端设备": dev.qf2Pdu,
+                        "对端端口": "电源线",
+                        "对端IP": "",
+                        "对端掩码": "",
+                        "备注": ""
+                    });
+                }
+            });
+
+            const wb = XLSX.utils.book_new();
+            const allHeader = ["所属机柜", "设备名称", "设备IP", "位置(U)", "配置类型", "本端端口", "本端IP", "本端掩码", "对端设备", "对端端口",
+                "对端IP", "对端掩码", "备注"
+            ];
+            const colFilters = {
+                "光缆终端盒": ["所属机柜", "设备名称", "位置(U)", "配置类型", "本端端口", "对端设备", "对端端口", "备注"],
+                "汇聚交换机": ["所属机柜", "设备名称", "设备IP", "位置(U)", "本端端口", "对端设备", "对端端口", "备注"],
+                "PDU电源分配单元": ["所属机柜", "设备名称", "位置(U)", "本端端口", "对端设备", "对端端口", "备注"],
+                "KVM": ["所属机柜", "位置(U)", "本端端口", "对端设备", "对端端口", "备注"],
+                "无配置设备": ["所属机柜", "设备名称", "位置(U)", "配置类型", "对端设备", "对端端口", "备注"]
+            };
+            let sheetCount = 0;
+
+            Object.keys(typeGroups).forEach(typeName => {
+                const rows = typeGroups[typeName];
+                if (rows.length === 0) return;
+
+                const header = colFilters[typeName] || allHeader;
+                const data = [header];
+                rows.forEach(row => {
+                    data.push(header.map(key => row[key] || ""));
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet(data);
+
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    for (let C = range.s.c; C <= range.e.c; C++) {
+                        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[addr]) continue;
+                        if (!ws[addr].s) ws[addr].s = {};
+                        ws[addr].s.alignment = {
+                            horizontal: 'center',
+                            vertical: 'center',
+                            wrapText: true
+                        };
+                        if (R === 0) {
+                            ws[addr].s.font = { bold: true, color: { rgb: "FFFFFF" } };
+                            ws[addr].s.fill = { fgColor: { rgb: "4472C4" } };
+                        }
+                        if (R > 0) {
+                            const val = String(ws[addr].v || "").trim();
+                            if (val !== "" && val !== "-") {
+                                if (!ws[addr].s.fill) {
+                                    ws[addr].s.fill = { fgColor: { rgb: "E2EFDA" } };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const colWidths = {};
+                data.forEach(row => {
+                    row.forEach((cell, idx) => {
+                        const val = String(cell || "");
+                        let w = 0;
+                        for (let i = 0; i < val.length; i++) {
+                            w += val.charCodeAt(i) > 127 ? 2 : 1;
+                        }
+                        w += 2;
+                        if (!colWidths[idx] || w > colWidths[idx]) {
+                            colWidths[idx] = Math.min(Math.max(w, 12), 50);
+                        }
+                    });
+                });
+                ws['!cols'] = header.map((key, idx) => ({
+                    wch: Math.max(colWidths[idx] || 12, key.length * 2 + 2)
+                }));
+
+                ws['!rows'] = [];
+                for (let i = 0; i < data.length; i++) {
+                    ws['!rows'].push({ hpt: 24 });
+                }
+
+                let sheetName = typeName.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, "_");
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                sheetCount++;
+            });
+
+            if (sheetCount === 0) {
+                alert("当前没有任何已配置的设备信息");
+                return;
+            }
+
+            XLSX.writeFile(wb, "机柜配置明细_" + new Date().toISOString().slice(0, 10) + ".xlsx", { cellStyles: true });
+        }
+
+        function exportConfig() {
+            const saveData = {
+                front: frontDevBlocks,
+                side: sideDevBlocks,
+                sideRight: sideRightBlocks,
+                extraCabinets: extraCabinets,
+                frontCabName: frontCabName,
+                sideCabName: sideCabName
+            };
+            const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "机柜配置_" + new Date().toISOString().slice(0, 10) + ".json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importConfig(fileDom) {
+            const file = fileDom.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    frontDevBlocks = sanitizeBlocks(data.front);
+                    sideDevBlocks = sanitizeBlocks(data.side);
+                    if (data.sideRight) sideRightBlocks = sanitizeBlocks(data.sideRight);
+                    extraCabinets = data.extraCabinets || [];
+                    frontCabName = data.frontCabName || "金风风机中央监控柜";
+                    sideCabName = data.sideCabName || "金风风机中央监控柜";
+                    extraCabinets.forEach(cab => {
+                        if (cab.alignStartU != null && cab.startU == null) {
+                            cab.startU = Math.max(1, cab.alignStartU - cab.uCount + 1);
+                        }
+                        if (cab.startU == null) cab.startU = 15;
+                        if (cab.uCount == null) cab.uCount = 10;
+                        if (cab.column == null) cab.column = 2;
+                        if (cab.devices == null) cab.devices = [];
+                        if (cab.id == null) cab.id = "cab_" + Date.now() + "_" + Math.floor(Math.random() *
+                            1000);
+                        if (cab.name == null) cab.name = "新增机柜";
+                        cab.devices = sanitizeBlocks(cab.devices);
+                    });
+                    autoAssignColumns();
+                    sortBlockList(frontDevBlocks);
+                    sortBlockList(sideDevBlocks);
+                    syncAllDevices();
+                    saveStorage();
+                    renderAll();
+                    alert("导入配置成功！");
+                } catch (err) {
+                    alert("JSON解析失败，请确认文件格式正确");
+                }
+                fileDom.value = "";
+            }
+            reader.readAsText(file);
+        }
+
+        function resetDefault() {
+            if (!confirm("确定恢复预置机柜数据？所有修改全部丢失！")) return;
+            const preset = getDefaultPreset();
+            frontDevBlocks = JSON.parse(JSON.stringify(preset.front));
+            sideDevBlocks = JSON.parse(JSON.stringify(preset.side));
+            sideRightBlocks = JSON.parse(JSON.stringify(preset.sideRight));
+            extraCabinets = [];
+            frontCabName = "金风风机中央监控柜";
+            sideCabName = "金风风机中央监控柜";
+            [...frontDevBlocks, ...sideDevBlocks, ...sideRightBlocks].forEach(d => fillDevicePorts(d));
+            syncAllDevices();
+            localStorage.removeItem(STORAGE_KEY);
+            renderAll();
+            alert("已恢复预置机柜原始配置");
+        }
+
+        // ===== 通用端口冲突检测 =====
+        function isPortOccupied(devName, portName, excludeDevName, excludePortName) {
+            if (!devName || !portName) return null;
+            const allDevs = [];
+            allDevs.push(...frontDevBlocks);
+            allDevs.push(...sideDevBlocks);
+            extraCabinets.forEach(cab => {
+                if (cab.devices) allDevs.push(...cab.devices);
+            });
+            for (let dev of allDevs) {
+                if (!dev.ports) continue;
+                for (let p of dev.ports) {
+                    if (p.dstDev === devName && p.dstPortName === portName) {
+                        if (excludeDevName && dev.text === excludeDevName) continue;
+                        return { owner: dev.text, portName: p.portName || "未知端口" };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function checkConflicts(dev, type) {
+            const conflicts = [];
+            const devName = dev.text;
+
+            if (type === "power" || type === "all") {
+                [dev.power1, dev.power2].forEach((pw, idx) => {
+                    if (pw && pw.pdu && pw.port) {
+                        const pdu = sideRightBlocks.find(b => b.text === pw.pdu && b.devType === DEV_TYPE
+                        .PDU);
+                        if (pdu) {
+                            fillDevicePorts(pdu);
+                            const port = pdu.ports.find(p => p.portName === "电源口" + pw.port);
+                            if (port && port.linkDev && port.linkDev !== devName) {
+                                conflicts.push(
+                                    `${idx === 0 ? "电源1" : "电源2"}：${pw.pdu} ${port.portName} 已被「${port.linkDev}」占用`
+                                    );
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (type === "network" || type === "all") {
+                if (dev.devType === DEV_TYPE.NORMAL || dev.devType === DEV_TYPE.AGG_SWITCH || dev.devType === DEV_TYPE
+                    .ODF) {
+                    dev.ports.forEach((portItem, idx) => {
+                        if (portItem.dstDev && portItem.dstPortName) {
+                            const occupied = isPortOccupied(portItem.dstDev, portItem.dstPortName, devName);
+                            if (occupied) {
+                                const localPortName = portItem.portName || `端口${idx + 1}`;
+                                conflicts.push(
+                                    `${localPortName} → ${portItem.dstDev} ${portItem.dstPortName} 已被「${occupied.owner}」占用`
+                                    );
+                            }
+                        }
+                    });
+                }
+            }
+            return conflicts;
+        }
+
+        function markConfiguredFields() {
+            document.querySelectorAll('.dev-setting-area input').forEach(inp => {
+                if (inp.value && inp.value.trim() !== "" && inp.value.trim() !== "0") {
+                    inp.classList.add('has-value');
+                } else {
+                    inp.classList.remove('has-value');
+                }
+            });
+
+            document.querySelectorAll('.power-row select').forEach(sel => {
+                if (sel.value && sel.value.trim() !== "") {
+                    sel.classList.add('has-value');
+                } else {
+                    sel.classList.remove('has-value');
+                }
+            });
+
+            document.querySelectorAll('.row-item input, .row-item select').forEach(el => {
+                if (el.tagName === 'SELECT') {
+                    if (el.value && el.value.trim() !== "" && el.value !== "--请选择端口--" && el.value !==
+                        "--请选择网口--" && el.value !== "--手动输入--") {
+                        el.classList.add('has-value');
+                    } else {
+                        el.classList.remove('has-value');
+                    }
+                } else if (el.tagName === 'INPUT') {
+                    if (el.value && el.value.trim() !== "" && el.value.trim() !== "0") {
+                        el.classList.add('has-value');
+                    } else {
+                        el.classList.remove('has-value');
+                    }
+                }
+            });
+        }
+
+        function buildConfigContent(container, devItem) {
+            if (isSyncDevice(devItem.text)) {
+                const syncTip = document.createElement("div");
+                syncTip.className = "sync-tip";
+                syncTip.innerHTML = `<span class="icon">📌</span> 此设备在正视图和侧视图中自动同步配置`;
+                container.appendChild(syncTip);
+            }
+
+            const devSetting = document.createElement("div");
+            devSetting.className = "dev-setting-area";
+            const uSpan = devItem.startU - devItem.endU + 1;
+            devSetting.innerHTML = `
+                <div class="field-row">
+                    <label>设备名称：<input id="devNameInput" value="${devItem.text}"></label>
+                    <label>设备IP：<input id="devIpInput" value="${devItem.deviceIp || ''}" placeholder="请输入设备IP"></label>
+                    <label>占用U数：<input id="devUCount" type="number" min="1" value="${uSpan}"></label>
+                    <label>端口数量：<input id="devPortCount" type="number" min="0" value="${devItem.portCount}" ${(devItem.devType === DEV_TYPE.PDU || devItem.devType === DEV_TYPE.AGG_SWITCH || devItem.devType === DEV_TYPE.ODF || devItem.text === "空开插座") ? "disabled" : ""}></label>
+                </div>
+            `;
+            container.appendChild(devSetting);
+
+            let powerMode = null;
+            if (devItem.devType === DEV_TYPE.NORMAL || devItem.devType === DEV_TYPE.AGG_SWITCH) {
+                powerMode = "dual";
+            } else if (devItem.text === "显示屏" || devItem.devType === DEV_TYPE.KVM) {
+                powerMode = "single";
+            }
+
+            if (powerMode === "dual") {
+                const powerArea = document.createElement("div");
+                powerArea.className = "power-setting-area";
+                const pduList = sideRightBlocks.filter(b => b.text && b.text.indexOf("PDU") === 0);
+                let pduOpts = "<option value=''>--请选择PDU--</option>";
+                pduList.forEach(p => { pduOpts += `<option value="${p.text}">${p.text}</option>`; });
+                const p1 = devItem.power1 || { pdu: "", port: "" };
+                const p2 = devItem.power2 || { pdu: "", port: "" };
+                powerArea.innerHTML = `
+                    <div class="power-title">电源配置（双电源，每路接入一个PDU电源口）</div>
+                    <div class="power-row">
+                        <label>电源1：
+                            <select class="power1-pdu">${pduOpts}</select>
+                            <select class="power1-port"></select>
+                        </label>
+                        <label>电源2：
+                            <select class="power2-pdu">${pduOpts}</select>
+                            <select class="power2-port"></select>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(powerArea);
+                const p1PduSel = powerArea.querySelector(".power1-pdu");
+                const p1PortSel = powerArea.querySelector(".power1-port");
+                const p2PduSel = powerArea.querySelector(".power2-pdu");
+                const p2PortSel = powerArea.querySelector(".power2-port");
+                p1PduSel.value = p1.pdu || "";
+                p2PduSel.value = p2.pdu || "";
+                p1PortSel.innerHTML = buildPowerPortOpts(p1PduSel.value, devItem.text);
+                p2PortSel.innerHTML = buildPowerPortOpts(p2PduSel.value, devItem.text);
+                p1PortSel.value = p1.port || "";
+                p2PortSel.value = p2.port || "";
+                p1PduSel.onchange = function() {
+                    p1PortSel.innerHTML = buildPowerPortOpts(p1PduSel.value, devItem.text);
+                    p1PortSel.value = "";
+                };
+                p2PduSel.onchange = function() {
+                    p2PortSel.innerHTML = buildPowerPortOpts(p2PduSel.value, devItem.text);
+                    p2PortSel.value = "";
+                };
+            } else if (powerMode === "single") {
+                const powerArea = document.createElement("div");
+                powerArea.className = "power-setting-area";
+                const pduList = sideRightBlocks.filter(b => b.text && b.text.indexOf("PDU") === 0);
+                let pduOpts = "<option value=''>--请选择PDU--</option>";
+                pduList.forEach(p => { pduOpts += `<option value="${p.text}">${p.text}</option>`; });
+                const p1 = devItem.power1 || { pdu: "", port: "" };
+                powerArea.innerHTML = `
+                    <div class="power-title">电源配置（单电源，接入一个PDU电源口）</div>
+                    <div class="power-row">
+                        <label>电源：
+                            <select class="power1-pdu">${pduOpts}</select>
+                            <select class="power1-port"></select>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(powerArea);
+                const p1PduSel = powerArea.querySelector(".power1-pdu");
+                const p1PortSel = powerArea.querySelector(".power1-port");
+                p1PduSel.value = p1.pdu || "";
+                p1PortSel.innerHTML = buildPowerPortOpts(p1PduSel.value, devItem.text);
+                p1PortSel.value = p1.port || "";
+                p1PduSel.onchange = function() {
+                    p1PortSel.innerHTML = buildPowerPortOpts(p1PduSel.value, devItem.text);
+                    p1PortSel.value = "";
+                };
+            } else if (devItem.text === "空开插座") {
+                const powerArea = document.createElement("div");
+                powerArea.className = "power-setting-area";
+                const pduList = sideRightBlocks.filter(b => b.text && b.text.indexOf("PDU") === 0);
+                let pduOpts = "<option value=''>--请选择PDU--</option>";
+                pduList.forEach(p => { pduOpts += `<option value="${p.text}">${p.text}</option>`; });
+                const qf1 = devItem.qf1Pdu || "PDU5";
+                const qf2 = devItem.qf2Pdu || "PDU6";
+                powerArea.innerHTML = `
+                    <div class="power-title">电源配置（QF1/QF2 接入PDU电源线，无需选择电源口）</div>
+                    <div class="power-row">
+                        <label>QF1：
+                            <select class="qf1-pdu">${pduOpts}</select>
+                        </label>
+                        <label>QF2：
+                            <select class="qf2-pdu">${pduOpts}</select>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(powerArea);
+                powerArea.querySelector(".qf1-pdu").value = qf1;
+                powerArea.querySelector(".qf2-pdu").value = qf2;
+            }
+
+            const portContainer = document.createElement("div");
+            portContainer.id = "portListWrap";
+            portContainer.style.overflowX = "auto";
+            portContainer.style.minWidth = "0";
+
+            const devList = getAllLinkableDevices();
+            let devOptHtml = "<option value=''>--手动输入--</option>";
+            devList.forEach(d => {
+                if (d.text !== devItem.text) {
+                    devOptHtml += `<option value="${d.text}">${d.text}</option>`;
+                }
+            })
+
+            if (devItem.text === "空开插座") {
+                // 无端口
+            } else if (devItem.devType === DEV_TYPE.NO_CONFIG) {
+                portContainer.innerHTML = `<div class="no-config-tip">该设备无需配置端口</div>`;
+            } else if (devItem.devType === DEV_TYPE.PDU) {
+                const headRow = document.createElement("div");
+                headRow.className = "row-item pdu";
+                headRow.style.fontWeight = "bold";
+                headRow.innerHTML = `<div>电源口</div><div>连接设备</div><div>电源路</div>`;
+                portContainer.appendChild(headRow);
+                for (let i = 0; i < devItem.portCount; i++) {
+                    const div = document.createElement("div");
+                    div.className = "row-item pdu";
+                    const pData = devItem.ports[i];
+                    div.innerHTML = `
+                        <input readonly value="${pData.portName}">
+                        <input readonly value="${pData.linkDev || ''}" placeholder="未连接">
+                        <input readonly value="${pData.linkPower || ''}" placeholder="-">
+                    `;
+                    portContainer.appendChild(div);
+                }
+            } else if (devItem.devType === DEV_TYPE.KVM) {
+                for (let i = 0; i < devItem.portCount; i++) {
+                    const div = document.createElement("div");
+                    div.className = "row-item kvm";
+                    const defaultName = devItem.ports[i].portName || `KVM${i + 1}`;
+                    const pData = devItem.ports[i];
+                    div.innerHTML = `
+                        <input class="port-name-inp" value="${defaultName}">
+                        <select class="link-dev">${devOptHtml}</select>
+                        <input placeholder="备注" class="inp-remark">
+                    `;
+                    div.querySelector(".link-dev").value = pData.linkDev || "";
+                    div.querySelector(".inp-remark").value = pData.remark || "";
+                    portContainer.appendChild(div);
+                }
+            } else if (devItem.devType === DEV_TYPE.ODF) {
+                const headRow = document.createElement("div");
+                headRow.className = "row-item odf";
+                headRow.style.fontWeight = "bold";
+                headRow.innerHTML = `<div>光口</div><div>终点设备</div><div>终点端口</div><div>备注</div>`;
+                portContainer.appendChild(headRow);
+                for (let i = 0; i < devItem.portCount; i++) {
+                    const div = document.createElement("div");
+                    div.className = "row-item odf";
+                    const pData = devItem.ports[i];
+                    div.innerHTML = `
+                        <input readonly value="${pData.portName}">
+                        <select class="dst-dev-select">${devOptHtml}</select>
+                        <select class="dst-port-select"><option value="">--请选择端口--</option></select>
+                        <input placeholder="备注" class="inp-remark">
+                    `;
+                    const dstDevSel = div.querySelector(".dst-dev-select");
+                    const dstPortSel = div.querySelector(".dst-port-select");
+                    dstDevSel.value = pData.dstDev || "";
+
+                    function refreshOdfPortSel() {
+                        dstPortSel.innerHTML = `<option value="">--请选择端口--</option>`;
+                        const targetDev = findDevByName(dstDevSel.value);
+                        if (targetDev) {
+                            const pNameList = getDevPortNameList(targetDev);
+                            pNameList.forEach(pi => {
+                                const opt = document.createElement("option");
+                                opt.value = pi.portName;
+                                opt.innerText = pi.occupied ? pi.portName + "（占用）" : pi.portName;
+                                dstPortSel.appendChild(opt);
+                            })
+                        }
+                        dstPortSel.value = pData.dstPortName || "";
+                    }
+                    refreshOdfPortSel();
+                    dstDevSel.onchange = refreshOdfPortSel;
+                    div.querySelector(".inp-remark").value = pData.remark || "";
+                    portContainer.appendChild(div);
+                }
+            } else if (devItem.devType === DEV_TYPE.NORMAL || devItem.devType === DEV_TYPE.AGG_SWITCH) {
+                const isAgg = devItem.devType === DEV_TYPE.AGG_SWITCH;
+                const headRow = document.createElement("div");
+                headRow.className = "row-item net" + (isAgg ? " agg-switch" : "");
+                headRow.style.fontWeight = "bold";
+                headRow.style.fontSize = "12px";
+                if (isAgg) {
+                    headRow.innerHTML = `
+                        <div>网口名称</div>
+                        <div>终点设备</div>
+                        <div>终点端口</div>
+                        <div>备注</div>
+                    `;
+                } else {
+                    headRow.innerHTML = `
+                        <div>网口名称(可编辑)</div>
+                        <div>本端IP地址</div>
+                        <div>本端子网掩码</div>
+                        <div>终点设备</div>
+                        <div>终点网口</div>
+                        <div>对端IP地址</div>
+                        <div>对端子网掩码</div>
+                        <div>备注</div>
+                    `;
+                }
+                portContainer.appendChild(headRow);
+
+                for (let i = 0; i < devItem.portCount; i++) {
+                    const div = document.createElement("div");
+                    const groupIdx = Math.floor(i / 4) % 4;
+                    div.className = "row-item net" + (isAgg ? " agg-switch" : "") + " port-group-" + groupIdx;
+                    const pData = devItem.ports[i];
+                    const defaultPortName = pData.portName || `网口${i + 1}`;
+                    if (isAgg) {
+                        div.innerHTML = `
+                            <input class="port-name-inp" value="${defaultPortName}" readonly>
+                            <select class="dst-dev-select">${devOptHtml}</select>
+                            <select class="dst-port-select"><option value="">--请选择端口--</option></select>
+                            <input placeholder="备注" class="inp-remark">
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <input class="port-name-inp" value="${defaultPortName}">
+                            <input placeholder="本端IP" class="local-ip">
+                            <input placeholder="本端子网掩码" class="local-mask">
+                            <select class="dst-dev-select">${devOptHtml}</select>
+                            <select class="dst-port-select"><option value="">--请选择端口--</option></select>
+                            <input placeholder="对端IP" class="dst-ip">
+                            <input placeholder="对端子网掩码" class="dst-mask">
+                            <input placeholder="备注" class="inp-remark">
+                        `;
+                        div.querySelector(".local-ip").value = pData.localIp || "";
+                        div.querySelector(".local-mask").value = pData.localMask || "";
+                        div.querySelector(".dst-ip").value = pData.dstIp || "";
+                        div.querySelector(".dst-mask").value = pData.dstMask || "";
+                    }
+                    const dstDevSel = div.querySelector(".dst-dev-select");
+                    const dstPortSel = div.querySelector(".dst-port-select");
+                    dstDevSel.value = pData.dstDev || "";
+                    div.querySelector(".inp-remark").value = pData.remark || "";
+
+                    function refreshDstPortOptions() {
+                        dstPortSel.innerHTML = `<option value="">--请选择端口--</option>`;
+                        const targetDev = findDevByName(dstDevSel.value);
+                        if (targetDev) {
+                            const pNameList = getDevPortNameList(targetDev);
+                            pNameList.forEach(pi => {
+                                const opt = document.createElement("option");
+                                opt.value = pi.portName;
+                                opt.innerText = pi.occupied ? pi.portName + "（占用）" : pi.portName;
+                                dstPortSel.appendChild(opt);
+                            })
+                        }
+                        dstPortSel.value = pData.dstPortName || "";
+                    }
+                    refreshDstPortOptions();
+                    dstDevSel.onchange = refreshDstPortOptions;
+                    portContainer.appendChild(div);
+                }
+            }
+
+            container.appendChild(portContainer);
+        }
+
+        function openModal(devItem, blockList, cabinetId) {
+            currentDev = devItem;
+            currentBlockList = blockList;
+            currentCabinetId = cabinetId || null;
+
+            fillDevicePorts(devItem);
+            modalDevName.innerText = devItem.text + (devItem.deviceIp ? " - " + devItem.deviceIp : "");
+
+            const wrap = document.getElementById("modalBodyWrap");
+            wrap.innerHTML = '';
+
+            const isDisplay = (devItem.text === "显示屏");
+
+            if (isDisplay) {
+                const flexWrap = document.createElement("div");
+                flexWrap.className = "modal-flex-wrap";
+
+                const leftCol = document.createElement("div");
+                leftCol.className = "modal-left-col";
+                buildConfigContent(leftCol, devItem);
+                flexWrap.appendChild(leftCol);
+
+                const rightCol = document.createElement("div");
+                rightCol.className = "modal-right-col";
+                const info = getDisplayInfo();
+                rightCol.innerHTML = `
+                    <div class="dev-info-card">
+                        <div class="info-title">📺 设备信息</div>
+                        <div class="info-item"><span class="info-label">设备名称：</span><span class="info-value">${info.name}</span></div>
+                        <div class="info-item"><span class="info-label">型号规格：</span><span class="info-value">${info.model}</span></div>
+                        <div class="info-item"><span class="info-label">开发人员：</span><span class="info-value">👨‍💻 ${info.developer}</span></div>
+                        <div class="info-item"><span class="info-label">所属公司：</span><span class="info-value">${info.company}</span></div>
+                        <div class="info-item"><span class="info-label">所属部门：</span><span class="info-value">${info.department}</span></div>
+                        <div class="info-item"><span class="info-label">软件版本：</span><span class="info-value">${info.version}</span></div>
+                        <div class="info-item"><span class="info-label">更新日期：</span><span class="info-value">${info.updateDate}</span></div>
+                        <div class="info-item"><span class="info-label">功能描述：</span><span class="info-value">${info.description}</span></div>
+                    </div>
+                `;
+                flexWrap.appendChild(rightCol);
+                wrap.appendChild(flexWrap);
+
+            } else {
+                const container = document.createElement("div");
+                buildConfigContent(container, devItem);
+                wrap.appendChild(container);
+            }
+
+            setTimeout(markConfiguredFields, 50);
+            wrap.addEventListener('input', markConfiguredFields);
+            wrap.addEventListener('change', markConfiguredFields);
+
+            modalMask.style.display = "flex";
+
+            saveBtn.onclick = function() {
+                saveDeviceConfig();
+            };
+            delBtn.onclick = function() {
+                deleteDevice();
+            };
+        }
+
+        function saveDeviceConfig() {
+            if (!currentDev) return;
+            const oldDevName = currentDev.text;
+            clearAllRemoteConnectionsToDevice(oldDevName);
+            const devNameInput = document.getElementById("devNameInput");
+            const devIpInput = document.getElementById("devIpInput");
+            const devUCount = document.getElementById("devUCount");
+            const devPortCount = document.getElementById("devPortCount");
+
+            currentDev.text = devNameInput.value.trim();
+            currentDev.deviceIp = devIpInput.value.trim();
+
+            let uc = parseInt(devUCount.value) || 1;
+            uc = Math.max(1, uc);
+            let newEndU = currentDev.startU - (uc - 1);
+            for (let dev of currentBlockList) {
+                if (dev === currentDev) continue;
+                if (isRangeOverlap(currentDev.startU, newEndU, dev.startU, dev.endU)) {
+                    alert("修改占用U数后，与其他设备位置重叠，请调整U数量");
+                    return;
+                }
+            }
+            currentDev.endU = newEndU;
+            sanitizeBlocks([currentDev]);
+            currentDev.portCount = parseInt(devPortCount.value) || 0;
+            fillDevicePorts(currentDev);
+
+            if (currentDev.text !== oldDevName) {
+                clearAllRemoteConnectionsToDevice(currentDev.text);
+            }
+
+            const portListWrap = document.getElementById("portListWrap");
+
+            if (currentDev.devType === DEV_TYPE.KVM) {
+                const rows = portListWrap.querySelectorAll(".row-item.kvm");
+                currentDev.ports = [];
+                rows.forEach(row => {
+                    currentDev.ports.push({
+                        portName: row.querySelector(".port-name-inp").value,
+                        linkDev: row.querySelector(".link-dev").value,
+                        remark: row.querySelector(".inp-remark").value
+                    })
+                })
+            } else if (currentDev.devType === DEV_TYPE.ODF) {
+                const rows = portListWrap.querySelectorAll(".row-item.odf:not(:first-child)");
+                const portConfigs = [];
+                let hasConflict = false;
+                let conflictMsg = "";
+                rows.forEach(row => {
+                    const dstDev = row.querySelector(".dst-dev-select").value;
+                    const dstPortName = row.querySelector(".dst-port-select").value;
+                    const remark = row.querySelector(".inp-remark").value;
+                    const portName = row.querySelector("input[readonly]").value;
+                    if (dstDev && dstPortName) {
+                        const occupied = isPortOccupied(dstDev, dstPortName, currentDev.text);
+                        if (occupied) {
+                            hasConflict = true;
+                            conflictMsg += `${portName} → ${dstDev} ${dstPortName} 已被「${occupied.owner}」占用\n`;
+                        }
+                        const dup = portConfigs.find(p => p.dstDev === dstDev && p.dstPortName === dstPortName);
+                        if (dup) {
+                            hasConflict = true;
+                            conflictMsg += `${portName} → ${dstDev} ${dstPortName} 已被本设备「${dup.portName}」占用\n`;
+                        }
+                    }
+                    portConfigs.push({ portName, dstDev, dstPortName, remark });
+                });
+                if (hasConflict) {
+                    alert("以下端口存在冲突，请调整后再保存：\n\n" + conflictMsg);
+                    return;
+                }
+                currentDev.ports = [];
+                portConfigs.forEach(p => {
+                    currentDev.ports.push({
+                        portName: p.portName,
+                        dstDev: p.dstDev,
+                        dstPortName: p.dstPortName,
+                        remark: p.remark
+                    });
+                    if (p.dstDev && p.dstPortName) {
+                        const remoteResult = findPortByDevAndPortName(p.dstDev, p.dstPortName);
+                        if (remoteResult) {
+                            const remotePort = remoteResult.port;
+                            if (remoteResult.dev.devType === DEV_TYPE.AGG_SWITCH) {
+                                remotePort.remark = p.remark || "";
+                            }
+                            remotePort.dstDev = currentDev.text;
+                            remotePort.dstPortName = p.portName;
+                        }
+                    }
+                });
+            } else if (currentDev.devType === DEV_TYPE.NORMAL || currentDev.devType === DEV_TYPE
+                .AGG_SWITCH) {
+                const rows = portListWrap.querySelectorAll(".row-item.net:not(:first-child)");
+                const isAgg = currentDev.devType === DEV_TYPE.AGG_SWITCH;
+                let hasConflict = false;
+                let conflictMsg = "";
+                const portConfigs = [];
+                rows.forEach(row => {
+                    const dstDev = row.querySelector(".dst-dev-select").value;
+                    const dstPortName = row.querySelector(".dst-port-select").value;
+                    const portName = row.querySelector(".port-name-inp").value.trim() || `网口`;
+                    const remark = row.querySelector(".inp-remark").value.trim();
+                    if (dstDev && dstPortName) {
+                        const occupied = isPortOccupied(dstDev, dstPortName, currentDev.text);
+                        if (occupied) {
+                            hasConflict = true;
+                            conflictMsg += `${portName} → ${dstDev} ${dstPortName} 已被「${occupied.owner}」占用\n`;
+                        }
+                        const dup = portConfigs.find(p => p.dstDev === dstDev && p.dstPortName === dstPortName);
+                        if (dup) {
+                            hasConflict = true;
+                            conflictMsg += `${portName} → ${dstDev} ${dstPortName} 已被本设备「${dup.portName}」占用\n`;
+                        }
+                    }
+                    let localIp = "", localMask = "", dstIp = "", dstMask = "";
+                    if (!isAgg) {
+                        localIp = row.querySelector(".local-ip").value.trim();
+                        localMask = row.querySelector(".local-mask").value.trim();
+                        dstIp = row.querySelector(".dst-ip").value.trim();
+                        dstMask = row.querySelector(".dst-mask").value.trim();
+                    }
+                    portConfigs.push({ portName, dstDev, dstPortName, remark, localIp, localMask, dstIp,
+                        dstMask });
+                });
+                if (hasConflict) {
+                    alert("以下端口存在冲突，请调整后再保存：\n\n" + conflictMsg);
+                    return;
+                }
+                currentDev.ports = [];
+                portConfigs.forEach(p => {
+                    const portObj = {
+                        portName: p.portName,
+                        dstDev: p.dstDev,
+                        dstPortName: p.dstPortName,
+                        remark: p.remark
+                    };
+                    if (!isAgg) {
+                        portObj.localIp = p.localIp;
+                        portObj.localMask = p.localMask;
+                        portObj.dstIp = p.dstIp;
+                        portObj.dstMask = p.dstMask;
+                    } else {
+                        portObj.localIp = "";
+                        portObj.localMask = "";
+                        portObj.dstIp = "";
+                        portObj.dstMask = "";
+                    }
+                    currentDev.ports.push(portObj);
+                    if (p.dstDev && p.dstPortName) {
+                        const remoteResult = findPortByDevAndPortName(p.dstDev, p.dstPortName);
+                        if (remoteResult) {
+                            const remotePort = remoteResult.port;
+                            remotePort.remark = p.remark || "";
+                            remotePort.dstDev = currentDev.text;
+                            remotePort.dstPortName = p.portName || "";
+                            if (!isAgg) {
+                                remotePort.dstIp = p.localIp;
+                                remotePort.dstMask = p.localMask;
+                                remotePort.localIp = p.dstIp;
+                                remotePort.localMask = p.dstMask;
+                            }
+                        }
+                    }
+                });
+            }
+
+            let savePowerMode = null;
+            if (currentDev.devType === DEV_TYPE.NORMAL || currentDev.devType === DEV_TYPE.AGG_SWITCH) {
+                savePowerMode = "dual";
+            } else if (currentDev.text === "显示屏" || currentDev.devType === DEV_TYPE.KVM) {
+                savePowerMode = "single";
+            }
+
+            if (savePowerMode) {
+                const powerArea = document.querySelector(".power-setting-area");
+                if (powerArea) {
+                    currentDev.power1 = {
+                        pdu: powerArea.querySelector(".power1-pdu")?.value || "",
+                        port: powerArea.querySelector(".power1-port")?.value || ""
+                    };
+                    if (savePowerMode === "dual") {
+                        currentDev.power2 = {
+                            pdu: powerArea.querySelector(".power2-pdu")?.value || "",
+                            port: powerArea.querySelector(".power2-port")?.value || ""
+                        };
+                    } else {
+                        currentDev.power2 = null;
+                    }
+                }
+                const powerConflicts = checkConflicts(currentDev, "power");
+                if (powerConflicts.length > 0) {
+                    alert("以下电源口已被其他设备占用，请调整后再保存：\n\n" + powerConflicts.join("\n"));
+                    return;
+                }
+                const newDevName = currentDev.text;
+                const allPdus = sideRightBlocks.filter(b => b.devType === DEV_TYPE.PDU);
+                allPdus.forEach(pdu => {
+                    fillDevicePorts(pdu);
+                    pdu.ports.forEach(p => {
+                        if (p.linkDev === oldDevName || p.linkDev === newDevName) {
+                            p.linkDev = "";
+                            p.linkPower = "";
+                        }
+                    });
+                });
+                if (currentDev.power1 && currentDev.power1.pdu && currentDev.power1.port) {
+                    const pdu = sideRightBlocks.find(b => b.text === currentDev.power1.pdu && b
+                    .devType === DEV_TYPE.PDU);
+                    if (pdu) {
+                        fillDevicePorts(pdu);
+                        const port = pdu.ports.find(p => p.portName === "电源口" + currentDev
+                        .power1.port);
+                        if (port) { port.linkDev = newDevName;
+                            port.linkPower = "电源1"; }
+                    }
+                }
+                if (savePowerMode === "dual" && currentDev.power2 && currentDev.power2.pdu && currentDev
+                    .power2.port) {
+                    const pdu = sideRightBlocks.find(b => b.text === currentDev.power2.pdu && b
+                    .devType === DEV_TYPE.PDU);
+                    if (pdu) {
+                        fillDevicePorts(pdu);
+                        const port = pdu.ports.find(p => p.portName === "电源口" + currentDev
+                        .power2.port);
+                        if (port) { port.linkDev = newDevName;
+                            port.linkPower = "电源2"; }
+                    }
+                }
+            }
+
+            if (currentDev.text === "空开插座") {
+                const powerArea = document.querySelector(".power-setting-area");
+                if (powerArea) {
+                    currentDev.qf1Pdu = powerArea.querySelector(".qf1-pdu")?.value || "";
+                    currentDev.qf2Pdu = powerArea.querySelector(".qf2-pdu")?.value || "";
+                }
+            }
+
+            if (isSyncDevice(currentDev.text)) {
+                syncDeviceConfig(currentDev, currentBlockList);
+            }
+
+            saveStorage();
+            renderAll();
+            closeModal();
+        }
+
+        function deleteDevice() {
+            if (!currentDev || !currentBlockList) return;
+            if (!confirm("确认要删除该设备？")) return;
+
+            const devName = currentDev.text;
+
+            clearAllRemoteConnectionsToDevice(devName);
+
+            if (currentDev.devType === DEV_TYPE.NORMAL || currentDev.devType === DEV_TYPE.AGG_SWITCH || currentDev
+                .text === "显示屏" || currentDev.devType === DEV_TYPE.KVM) {
+                const allPdus = sideRightBlocks.filter(b => b.devType === DEV_TYPE.PDU);
+                allPdus.forEach(pdu => {
+                    fillDevicePorts(pdu);
+                    pdu.ports.forEach(p => {
+                        if (p.linkDev === devName) {
+                            p.linkDev = "";
+                            p.linkPower = "";
+                        }
+                    });
+                });
+            }
+
+            if (isSyncDevice(devName)) {
+                const counterpart = findCounterpartDevice(devName, currentBlockList);
+                if (counterpart) {
+                    const idx = counterpart.list.indexOf(counterpart.dev);
+                    if (idx > -1) {
+                        counterpart.list.splice(idx, 1);
+                    }
+                }
+            }
+
+            const idx = currentBlockList.indexOf(currentDev);
+            if (idx > -1) {
+                currentBlockList.splice(idx, 1);
+            }
+
+            saveStorage();
+            closeModal();
+            renderAll();
+        }
+
+        function closeModal() {
+            modalMask.style.display = "none";
+            currentDev = null;
+            currentBlockList = null;
+            currentCabinetId = null;
+        }
+
+        function renderUColumn(domId, topU, bottomU) {
+            const dom = document.getElementById(domId);
+            if (!dom) return;
+            dom.innerHTML = "";
+            const top = topU != null ? topU : TOP_U;
+            const bottom = bottomU != null ? bottomU : BOTTOM_U;
+            for (let u = top; u >= bottom; u--) {
+                const div = document.createElement("div");
+                div.className = "u-row";
+                div.innerText = u;
+                dom.appendChild(div);
+            }
+        }
+
+        function renderDeviceColumn(domId, blockList, topU, bottomU, cabinetId) {
+            const dom = document.getElementById(domId);
+            if (!dom) return;
+            dom.innerHTML = "";
+            const blocks = blockList || [];
+            const top = topU != null ? topU : TOP_U;
+            const bottom = bottomU != null ? bottomU : BOTTOM_U;
+            let ptrU = top;
+            while (ptrU >= bottom) {
+                const hit = blocks.find(b => ptrU <= b.startU && ptrU >= b.endU);
+                if (hit) {
+                    const spanRows = hit.startU - hit.endU + 1;
+                    const el = document.createElement("div");
+                    el.className = "dev-row";
+                    el.style.height = (spanRows * U_HEIGHT) + "px";
+                    if (hit.bg) el.style.background = hit.bg;
+                    if (hit.text === "显示屏") {
+                        el.innerHTML =
+                            `<span style="font-size:42px;font-weight:bold;color:#0d47a1;letter-spacing:6px;">Goldwind</span>`;
+                    } else {
+                        el.innerHTML = hit.text;
+                    }
+                    el.classList.add("has-device");
+                    el.onclick = () => openModal(hit, blocks, cabinetId);
+                    dom.appendChild(el);
+                    ptrU = hit.endU - 1;
+                } else {
+                    const emptyDiv = document.createElement("div");
+                    emptyDiv.className = "dev-row empty-u";
+                    emptyDiv.dataset.u = ptrU;
+                    emptyDiv.ondblclick = function() {
+                        const clickU = Number(this.dataset.u);
+                        const newDev = addNewDeviceAtU(blocks, clickU);
+                        if (newDev) {
+                            openModal(newDev, blocks, cabinetId);
+                        }
+                    }
+                    dom.appendChild(emptyDiv);
+                    ptrU--;
+                }
+            }
+        }
+
+        function renderAll() {
+            const frontTitle = document.getElementById("frontCabTitle");
+            const sideTitle = document.getElementById("sideCabTitle");
+            if (frontTitle && frontTitle.getAttribute("contenteditable") !== "true") frontTitle.innerText =
+            frontCabName;
+            if (sideTitle && sideTitle.getAttribute("contenteditable") !== "true") sideTitle.innerText = sideCabName;
+
+            renderUColumn("frontUCol");
+            renderDeviceColumn("frontDevCol", frontDevBlocks, TOP_U, BOTTOM_U, "front");
+
+            renderUColumn("sideUCol");
+            renderDeviceColumn("sideDevCol", sideDevBlocks, TOP_U, BOTTOM_U, "side");
+            renderDeviceColumn("sideRightCol", sideRightBlocks, TOP_U, BOTTOM_U, "side");
+
+            renderExtraCabinets();
+        }
+
+        function findAvailableColumn(startU, uCount, excludeId) {
+            const topU = startU + uCount - 1;
+            const bottomU = startU;
+            const columns = {};
+            extraCabinets.forEach(cab => {
+                if (cab.id === excludeId) return;
+                const col = cab.column != null ? cab.column : 2;
+                if (!columns[col]) columns[col] = [];
+                columns[col].push(cab);
+            });
+            const colIndices = Object.keys(columns).map(Number).sort((a, b) => a - b);
+            for (let colIdx of colIndices) {
+                const cabs = columns[colIdx];
+                let conflict = false;
+                for (let cab of cabs) {
+                    const cabTop = cab.startU + cab.uCount - 1;
+                    const cabBottom = cab.startU;
+                    if (!(topU < cabBottom || bottomU > cabTop)) {
+                        conflict = true;
+                        break;
+                    }
+                }
+                if (!conflict) return colIdx;
+            }
+            return null;
+        }
+
+        function autoAssignColumns() {
+            const sorted = [...extraCabinets].sort((a, b) => (b.startU + b.uCount) - (a.startU + a.uCount));
+            sorted.forEach(cab => {
+                cab.column = 1;
+            });
+        }
+
+        function deleteExtraCabinet(cabId) {
+            if (!confirm("确认要删除该机柜及其所有设备吗？")) return;
+            const idx = extraCabinets.findIndex(c => c.id === cabId);
+            if (idx > -1) {
+                extraCabinets.splice(idx, 1);
+                saveStorage();
+                renderAll();
+            }
+        }
+
+        function renderExtraCabinets() {
+            document.querySelectorAll(".cabinet-column.dynamic-column").forEach(el => el.remove());
+            if (extraCabinets.length === 0) return;
+            const mainContainer = document.querySelector(".main-container");
+            const column = document.createElement("div");
+            column.className = "cabinet-column dynamic-column";
+            column.style.width = "100%";
+            let prevBottomU = 48;
+            extraCabinets.forEach(cab => {
+                cab.column = 1;
+                const topU = cab.startU + cab.uCount - 1;
+                const bottomU = cab.startU;
+                const uColId = `extra_u_${cab.id}`;
+                const devColId = `extra_dev_${cab.id}`;
+                const marginTop = (prevBottomU - topU - 1) * U_HEIGHT;
+                prevBottomU = bottomU;
+                const card = document.createElement("div");
+                card.className = "cabinet-card extra-cabinet-card";
+                card.dataset.cabId = cab.id;
+                card.style.marginTop = marginTop + "px";
+                card.innerHTML = `
+                    <div class="cab-title-wrap">
+                        <div class="cab-title" data-cab-id="${cab.id}">${cab.name}</div>
+                        <button class="cab-del-btn" onclick="deleteExtraCabinet('${cab.id}')" title="删除此机柜">✕</button>
+                    </div>
+                    <div class="cabinet">
+                        <div class="u-col" id="${uColId}"></div>
+                        <div class="dev-col" id="${devColId}"></div>
+                    </div>
+                `;
+                column.appendChild(card);
+            });
+            mainContainer.appendChild(column);
+            extraCabinets.forEach(cab => {
+                const topU = cab.startU + cab.uCount - 1;
+                const bottomU = cab.startU;
+                const uColId = `extra_u_${cab.id}`;
+                const devColId = `extra_dev_${cab.id}`;
+                renderUColumn(uColId, topU, bottomU);
+                renderDeviceColumn(devColId, cab.devices, topU, bottomU, cab.id);
+            });
+        }
+
+        function openAddCabModal() {
+            document.getElementById("addCabName").value = "新增机柜";
+            document.getElementById("addCabUCount").value = 47;
+            document.getElementById("addCabStartU").value = 1;
+            document.getElementById("addCabMask").style.display = "flex";
+        }
+
+        function closeAddCabModal() {
+            document.getElementById("addCabMask").style.display = "none";
+        }
+
+        function getOccupiedRangesForColumn(colIdx) {
+            const ranges = [];
+            if (colIdx === 0) {
+                for (let dev of frontDevBlocks) {
+                    ranges.push({ bottom: dev.endU, top: dev.startU });
+                }
+            }
+            if (colIdx === 1) {
+                for (let dev of sideDevBlocks) {
+                    ranges.push({ bottom: dev.endU, top: dev.startU });
+                }
+                for (let dev of sideRightBlocks) {
+                    ranges.push({ bottom: dev.endU, top: dev.startU });
+                }
+            }
+            for (let cab of extraCabinets) {
+                if (cab.column === colIdx) {
+                    ranges.push({ bottom: cab.startU, top: cab.startU + cab.uCount - 1 });
+                }
+            }
+            ranges.sort((a, b) => a.bottom - b.bottom);
+            const merged = [];
+            for (let range of ranges) {
+                if (merged.length === 0) {
+                    merged.push(range);
+                } else {
+                    const last = merged[merged.length - 1];
+                    if (range.bottom <= last.top + 1) {
+                        last.top = Math.max(last.top, range.top);
+                    } else {
+                        merged.push(range);
+                    }
+                }
+            }
+            return merged;
+        }
+
+        function findAvailableUPosition(colIdx, uCount) {
+            const occupied = getOccupiedRangesForColumn(colIdx);
+            let candidateStart = 1;
+            while (candidateStart + uCount - 1 <= 47) {
+                const candidateTop = candidateStart + uCount - 1;
+                let conflict = false;
+                for (let range of occupied) {
+                    if (!(candidateTop < range.bottom || candidateStart > range.top)) {
+                        conflict = true;
+                        candidateStart = range.top + 1;
+                        break;
+                    }
+                }
+                if (!conflict) {
+                    return candidateStart;
+                }
+            }
+            return null;
+        }
+
+        function hasColumnConflict(colIdx, startU, uCount) {
+            const occupied = getOccupiedRangesForColumn(colIdx);
+            const topU = startU + uCount - 1;
+            for (let range of occupied) {
+                if (!(topU < range.bottom || startU > range.top)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function getMaxColumnIndex() {
+            let maxCol = 1;
+            for (let cab of extraCabinets) {
+                if (cab.column != null && cab.column > maxCol) {
+                    maxCol = cab.column;
+                }
+            }
+            return maxCol;
+        }
+
+        function confirmAddCab() {
+            try {
+                const name = document.getElementById("addCabName").value.trim() || "新增机柜";
+                const uCount = parseInt(document.getElementById("addCabUCount").value) || 47;
+                const startU = parseInt(document.getElementById("addCabStartU").value) || 1;
+
+                if (uCount < 1 || uCount > 47) {
+                    alert("机柜U数必须在1-47之间");
+                    return;
+                }
+                if (startU < 1 || startU > 47) {
+                    alert("起始U位必须在1-47之间");
+                    return;
+                }
+                const topU = startU + uCount - 1;
+                if (topU > 47) {
+                    alert(`起始U位${startU}往上${uCount}U后超出47U上限，请调小起始U位或减小U数`);
+                    return;
+                }
+
+                const maxCol = getMaxColumnIndex();
+                const newCol = maxCol + 1;
+
+                if (hasColumnConflict(newCol, startU, uCount)) {
+                    const availStart = findAvailableUPosition(newCol, uCount);
+                    if (availStart !== null) {
+                        const newCab = {
+                            id: "cab_" + Date.now(),
+                            name: name,
+                            uCount: uCount,
+                            startU: availStart,
+                            alignTo: "front",
+                            position: "right",
+                            column: newCol,
+                            devices: []
+                        };
+                        extraCabinets.push(newCab);
+                        saveStorage();
+                        renderAll();
+                        closeAddCabModal();
+                        alert(`机柜「${name}」已创建在列${newCol}，起始U位${availStart}U（因原位置冲突自动调整）`);
+                        return;
+                    } else {
+                        alert(`在右侧新列中找不到足够的连续空闲U位（需要${uCount}U），请调整起始U位或U数`);
+                        return;
+                    }
+                }
+
+                const newCab = {
+                    id: "cab_" + Date.now(),
+                    name: name,
+                    uCount: uCount,
+                    startU: startU,
+                    alignTo: "front",
+                    position: "right",
+                    column: newCol,
+                    devices: []
+                };
+                extraCabinets.push(newCab);
+                saveStorage();
+                renderAll();
+                closeAddCabModal();
+                alert(`机柜「${name}」已创建在列${newCol}，起始U位${startU}U`);
+            } catch (e) {
+                alert("创建机柜出错：" + e.message + "\n" + e.stack);
+            }
+        }
+
+        document.addEventListener("click", function(e) {
+            const title = e.target.closest(".cab-title");
+            if (!title) return;
+            if (title.getAttribute("contenteditable") === "true") return;
+            title.setAttribute("contenteditable", "true");
+            title.focus();
+            const range = document.createRange();
+            range.selectNodeContents(title);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
+
+        document.addEventListener("blur", function(e) {
+            const title = e.target.closest(".cab-title");
+            if (!title || title.getAttribute("contenteditable") !== "true") return;
+            title.setAttribute("contenteditable", "false");
+            const newName = title.innerText.trim() || "未命名机柜";
+            title.innerText = newName;
+            const cabId = title.dataset.cabId;
+            if (cabId === "front") {
+                frontCabName = newName;
+            } else if (cabId === "side") {
+                sideCabName = newName;
+            } else if (cabId) {
+                const cab = extraCabinets.find(c => c.id === cabId);
+                if (cab) cab.name = newName;
+            }
+            saveStorage();
+        }, true);
+
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") {
+                const addMask = document.getElementById("addCabMask");
+                if (addMask && addMask.style.display === "flex") {
+                    closeAddCabModal();
+                }
+                if (modalMask.style.display === "flex") {
+                    closeModal();
+                }
+            }
+        });
+
+        loadStorage();
+        renderAll();
+    </script>
+</body>
+</html>
